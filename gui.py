@@ -21,6 +21,7 @@ import zlib
 from win32api import GetSystemMetrics
 import wx
 import cv2
+import pyaudio
 
 SCREEN_WIDTH = GetSystemMetrics(0)
 SCREEN_HEIGHT = GetSystemMetrics(1)
@@ -37,6 +38,124 @@ def get_config():
 HOST = get_config()['client']['server_ip']
 PORT = get_config()['client']['text_port']
 PORT2 = get_config()['client']['video_port']
+PORT3 = get_config()['client']['audio_port']
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100
+RECORD_SECONDS = 0.3
+
+
+class AudioClient():
+    """
+    音频客户端类，捕获声卡数据，向音频服务器发送音频数据
+    从音频服务器接收对方音频数据
+    """
+
+    __slots__ = ['py_audio', 'stream1', 'stream2', 'sock', 'client', 'server']
+
+    def __init__(self, host, port):
+        """
+        音频客户端类的初始化：连接音频服务器，分配两个线程分别用于发送数据和接收数据
+        :param host: [string] 音频服务器IP地址
+        :param port: [int] 音频服务器端口号
+        """
+        super(AudioClient, self).__init__()
+        self.py_audio = pyaudio.PyAudio()
+        self.stream1 = None
+        self.stream2 = None
+        self.sock = socket(AF_INET, SOCK_STREAM)
+        while True:
+            try:
+                self.sock.connect((host, port))
+                break
+            except:
+                time.sleep(2)
+                continue
+        print("connection with server success")
+        client = threading.Thread(target=self.send_audio_data)
+        server = threading.Thread(target=self.show_audio_data)
+        client.start()
+        server.start()
+
+    def __del__(self):
+        """
+        音频客户端类的析构，关闭连接，释放声卡
+        :return:
+        """
+        if self.stream1 is not None:
+            try:
+                self.stream1.stop_stream()
+                self.stream1.close()
+            except:
+                pass
+        if self.stream2 is not None:
+            try:
+                self.stream2.stop_stream()
+                self.stream2.close()
+            except:
+                pass
+        if self.py_audio is not None:
+            self.py_audio.terminate()
+        if self.sock is not None:
+            self.sock.close()
+
+    def send_audio_data(self):
+        """
+        捕获声卡数据并发送给音频服务器
+        :return:
+        """
+        # 通过声卡捕获音频
+        try:
+            self.stream1 = self.py_audio.open(format=FORMAT,
+                                             channels=CHANNELS,
+                                             rate=RATE,
+                                             input=True,
+                                             frames_per_buffer=CHUNK)
+        except:
+            print('请检查声卡是否可用')
+        while self.stream1.is_active():
+            frame = []
+            for i in range(0, int(RATE/CHUNK*RECORD_SECONDS)):
+                data = self.stream1.read(CHUNK)
+                frame.append(data)
+            data = pickle.dumps(frame)
+            zdata = zlib.compress(data, zlib.Z_BEST_COMPRESSION)
+
+            try:
+                self.sock.sendall(struct.pack("L", len(zdata)) + zdata)
+            except Exception:
+                continue
+
+    def show_audio_data(self):
+        """
+        接收音频服务器发过来的数据并播放出来
+        :return:
+        """
+        data = "".encode("utf-8")
+        size = struct.calcsize("L")
+        self.stream2 = self.py_audio.open(format=FORMAT,
+                                         channels=CHANNELS,
+                                         rate=RATE,
+                                         output=True,
+                                         frames_per_buffer=CHUNK)
+        while True:
+            while len(data) < size:
+                data1 = self.sock.recv(81920)
+                data = data + data1
+            packed_size = data[:size]
+            data = data[size:]
+            msg_size = struct.unpack("L", packed_size)[0]
+            while len(data) < msg_size:
+                data = data + self.sock.recv(81920)
+
+            zframe_data = data[:msg_size]
+            data = data[msg_size:]
+            frame_data = zlib.decompress(zframe_data)
+            frame = pickle.loads(frame_data)
+
+            for j in frame:
+                self.stream2.write(j, CHUNK)
 
 
 class VideoClient():
@@ -278,7 +397,8 @@ class ChatWindow(wx.Frame):
         self.VideoButton.Bind(wx.EVT_BUTTON, self.video)
         thread.start_new_thread(self.receive, ())
         self.Bind(wx.EVT_CLOSE, self.close)
-        # VideoClient(HOST, PORT2)
+        VideoClient(HOST, PORT2)
+        AudioClient(HOST, PORT3)
         self.Show()
 
     def send_msg(self, event):

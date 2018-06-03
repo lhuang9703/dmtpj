@@ -1,0 +1,14 @@
+{
+	"client":{
+		"server_ip":"127.0.0.1",
+		"text_port":6667,
+        "video_port":9998,
+		"audio_port":8888
+	},
+	"server":{
+		"bind_ip":"0.0.0.0",
+		"text_port":6667,
+        "video_port":9998,
+		"audio_port":8888
+	}
+}

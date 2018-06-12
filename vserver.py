@@ -94,8 +94,8 @@ class VideoServer(object):
             if data == b"":
                 print('close')
                 break
-            if len(con2video) == 1:
-                con.send('00000000'.encode())
+            # if len(con2video) == 1:
+            #     con.send('00000000'.encode())
             for user in con2video:
                 # 向除了该用户的其他用户发送视频数据
                 if user != con:

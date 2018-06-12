@@ -99,11 +99,11 @@ class AudioServer(object):
             if len(con2audio) == 1:
                 pass
                 # con.send('00000000'.encode())
-            # for user in con2audio:
-            #     # 向除了该用户的其他用户发送视频数据
-            #     if user != con:
-            #         user.sendall(data)
-            con.sendall(data)
+            for user in con2audio:
+                # 向除了该用户的其他用户发送视频数据
+                if user != con:
+                    user.sendall(data)
+            # con.sendall(data)
         con.close()
 
 

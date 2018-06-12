@@ -1,6 +1,6 @@
 {
 	"client":{
-		"server_ip":"127.0.0.1",
+		"server_ip":"192.168.43.93",
 		"text_port":6667,
         "video_port":9998,
 		"audio_port":8888
@@ -10,5 +10,11 @@
 		"text_port":6667,
         "video_port":9998,
 		"audio_port":8888
-	}
+	},
+    "audio_parameters":{
+        "CHUNK":1024,
+        "CHANNELS":1,
+        "RATE":44100,
+        "RECORD_SECONDS":0.3
+    }
 }

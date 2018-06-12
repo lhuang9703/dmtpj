@@ -26,6 +26,7 @@ import pyaudio
 SCREEN_WIDTH = GetSystemMetrics(0)
 SCREEN_HEIGHT = GetSystemMetrics(1)
 
+
 def get_config():
     """
     获取配置信息
@@ -39,11 +40,11 @@ HOST = get_config()['client']['server_ip']
 PORT = get_config()['client']['text_port']
 PORT2 = get_config()['client']['video_port']
 PORT3 = get_config()['client']['audio_port']
-CHUNK = 1024
+CHUNK = get_config()['audio_parameters']['CHUNK']
 FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
-RECORD_SECONDS = 0.3
+CHANNELS = get_config()['audio_parameters']['CHANNELS']
+RATE = get_config()['audio_parameters']['RATE']
+RECORD_SECONDS = get_config()['audio_parameters']['RECORD_SECONDS']
 
 
 class AudioClient():
@@ -210,6 +211,7 @@ class VideoClient():
             # self.cap = cv2.VideoCapture(r"D:\\360data\重要数据\桌面\杂\《小王》.mp4")
         except:
             print('请检查摄像头是否可用')
+        # 展示己方视频
         show_self = 1
         while self.cap.isOpened():
             ret, frame = self.cap.read()
@@ -221,7 +223,7 @@ class VideoClient():
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     show_self = 0
                     cv2.destroyWindow('Me')
-            # frame = cv2.resize(frame, (0, 0), fx=0.3, fy=0.3)
+            frame = cv2.resize(frame, (0, 0), fx=0.2, fy=0.2)
             data = pickle.dumps(frame)
             zdata = zlib.compress(data, zlib.Z_BEST_COMPRESSION)
 
@@ -230,7 +232,7 @@ class VideoClient():
             except Exception:
                 continue
 
-            for i in range(0):
+            for i in range(4):
                 self.cap.read()
 
     def show_video_data(self):
@@ -248,19 +250,19 @@ class VideoClient():
         while True:
             while len(data) < size:
                 data1 = self.sock.recv(81920)
-                data_err = data1.decode()
-                if data_err == '00000000':
-                    flag = 1
-                    break
-                else:
-                    flag = 0
-                    data = data + data1
-            if flag == 1:
-                cv2.imshow('Friend', im)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    cv2.destroyWindow('Friend')
-                    break
-                continue
+                # data_err = data1.decode()
+                # if data_err == '00000000':
+                #     flag = 1
+                #     break
+                # else:
+                #     flag = 0
+                data = data + data1
+            # if flag == 1:
+            #     cv2.imshow('Friend', im)
+            #     if cv2.waitKey(1) & 0xFF == ord('q'):
+            #         cv2.destroyWindow('Friend')
+            #         break
+            #     continue
             packed_size = data[:size]
             data = data[size:]
             msg_size = struct.unpack("L", packed_size)[0]
@@ -389,12 +391,12 @@ class ChatWindow(wx.Frame):
         self.ShopWindow = wx.TextCtrl(self, pos=(30, 5), size=(425, 310), style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.MyMsgWindow = wx.TextCtrl(self, pos=(30, 325), size=(350, 50), style=wx.TE_MULTILINE)
         self.EnterButton = wx.Button(self, label="Enter", pos=(385, 325), size=(70, 50))
-        self.VideoButton = wx.Button(self, label="Video", pos=(30, 380), size=(80, 25))
-        self.NoVideoButton = wx.Button(self, label="No Video", pos=(115, 380), size=(80, 25))
+        # self.VideoButton = wx.Button(self, label="Video", pos=(30, 380), size=(80, 25))
+        # self.NoVideoButton = wx.Button(self, label="No Video", pos=(115, 380), size=(80, 25))
         # 发送按钮绑定发送消息方法
         self.EnterButton.Bind(wx.EVT_BUTTON, self.send_msg)
-        self.NoVideoButton.Bind(wx.EVT_BUTTON, self.no_video)
-        self.VideoButton.Bind(wx.EVT_BUTTON, self.video)
+        # self.NoVideoButton.Bind(wx.EVT_BUTTON, self.no_video)
+        # self.VideoButton.Bind(wx.EVT_BUTTON, self.video)
         thread.start_new_thread(self.receive, ())
         self.Bind(wx.EVT_CLOSE, self.close)
         VideoClient(HOST, PORT2)
@@ -425,7 +427,11 @@ class ChatWindow(wx.Frame):
             self.Video = VideoClient(HOST, PORT2)
 
     def close(self, evt):
-        # 关闭窗口
+        """
+        关闭聊天窗口
+        :param evt: [class] 事件（鼠标点击）
+        :return:
+        """
         # self.s.send('/loginout'.encode())
         # self.sock.send('exit'.encode())
         if self.Video is not None:
@@ -437,7 +443,11 @@ class ChatWindow(wx.Frame):
         sys.exit()
 
     def receive(self):
-        # 接受服务器的消息并展示出来
+        """
+        接受服务端的消息并展示出来
+        :param event: [string] 事件（鼠标点击）
+        :return:
+        """
         while True:
             sleep(0.2)
             result = self.sock.recv(1024).decode()
@@ -448,6 +458,7 @@ class ChatWindow(wx.Frame):
                 self.ShopWindow.AppendText('\n' + result)
         self.Close()
         sys.exit()
+
 
 if __name__ == '__main__':
     app = wx.App()
